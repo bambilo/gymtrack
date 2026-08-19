@@ -301,6 +301,12 @@ h3 {
   flex-shrink: 0;
 }
 
+.exercise-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
 .set-rows {
   display: flex;
   flex-direction: column;

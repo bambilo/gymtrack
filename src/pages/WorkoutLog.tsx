@@ -86,6 +86,16 @@ function ExerciseCard({ exercise, workoutLogId, existingSets }: ExerciseCardProp
     }
   }
 
+  const firstSet = existingSets.find((s) => s.setNo === 1)
+
+  const applyFirstSetToAll = async () => {
+    if (!workoutLogId || !firstSet) return
+    for (const setNo of setRows) {
+      if (setNo === 1) continue
+      await upsertSetLog(workoutLogId, exercise.id!, setNo, firstSet.weight, firstSet.reps)
+    }
+  }
+
   return (
     <div className="card exercise-card">
       <div className="exercise-card-header">
@@ -127,9 +137,16 @@ function ExerciseCard({ exercise, workoutLogId, existingSets }: ExerciseCardProp
         })}
       </div>
 
-      <button className="secondary-button" onClick={() => setExtraSets((n) => n + 1)}>
-        + Set Ekle
-      </button>
+      <div className="exercise-card-actions">
+        <button className="secondary-button" onClick={() => setExtraSets((n) => n + 1)}>
+          + Set Ekle
+        </button>
+        {firstSet && setRows.length > 1 && (
+          <button className="secondary-button" onClick={applyFirstSetToAll}>
+            Set 1'i tüm setlere uygula
+          </button>
+        )}
+      </div>
     </div>
   )
 }
