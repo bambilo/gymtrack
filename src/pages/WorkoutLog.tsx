@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useCurrentUser } from '../context/CurrentUserContext'
 import { dateKey, formatLongDate } from '../lib/date'
@@ -23,12 +23,21 @@ export function WorkoutLog() {
   const targetDate = date ?? today
   const isPastEntry = targetDate !== today
 
+  // Kept as a memoized promise (not just resolved state) so writes that fire
+  // before the id has resolved still land on the correct workout log instead
+  // of silently no-oping — getOrCreateWorkoutLog is idempotent, safe to await
+  // repeatedly from multiple callers.
+  const workoutLogPromise = useMemo(() => {
+    if (!userId || !dayId) return null
+    return getOrCreateWorkoutLog(userId, targetDate, dayId)
+  }, [userId, dayId, targetDate])
+
   const [workoutLogId, setWorkoutLogId] = useState<number | null>(null)
 
   useEffect(() => {
-    if (!userId || !dayId) return
-    getOrCreateWorkoutLog(userId, targetDate, dayId).then(setWorkoutLogId)
-  }, [userId, dayId, targetDate])
+    setWorkoutLogId(null)
+    workoutLogPromise?.then(setWorkoutLogId)
+  }, [workoutLogPromise])
 
   const programDay = useSupabaseQuery(() => fetchProgramDay(dayId), ['program_days'], [dayId])
   const exercises = useSupabaseQuery(
@@ -57,6 +66,7 @@ export function WorkoutLog() {
           key={exercise.id}
           exercise={exercise}
           workoutLogId={workoutLogId}
+          workoutLogPromise={workoutLogPromise}
           existingSets={setLogs?.filter((s) => s.programExerciseId === exercise.id) ?? []}
         />
       ))}
@@ -71,10 +81,11 @@ export function WorkoutLog() {
 interface ExerciseCardProps {
   exercise: { id: number; name: string; targetSets: number; targetReps: string; intensity: string }
   workoutLogId: number | null
+  workoutLogPromise: Promise<number> | null
   existingSets: { setNo: number; weight: number; reps: number }[]
 }
 
-function ExerciseCard({ exercise, workoutLogId, existingSets }: ExerciseCardProps) {
+function ExerciseCard({ exercise, workoutLogId, workoutLogPromise, existingSets }: ExerciseCardProps) {
   const [extraSets, setExtraSets] = useState(0)
   const totalSets = Math.max(exercise.targetSets, ...existingSets.map((s) => s.setNo)) + extraSets
 
@@ -90,26 +101,29 @@ function ExerciseCard({ exercise, workoutLogId, existingSets }: ExerciseCardProp
   )
 
   const useLastValues = async () => {
-    if (!workoutLogId || !lastSets || lastSets.length === 0) return
+    if (!workoutLogPromise || !lastSets || lastSets.length === 0) return
+    const id = await workoutLogPromise
     for (const s of lastSets) {
-      await upsertSetLog(workoutLogId, exercise.id!, s.setNo, s.weight, s.reps)
+      await upsertSetLog(id, exercise.id!, s.setNo, s.weight, s.reps)
     }
   }
 
   const firstSet = existingSets.find((s) => s.setNo === 1)
 
   const applyFirstSetToAll = async () => {
-    if (!workoutLogId || !firstSet) return
+    if (!workoutLogPromise || !firstSet) return
+    const id = await workoutLogPromise
     for (const setNo of setRows) {
       if (setNo === 1) continue
-      await upsertSetLog(workoutLogId, exercise.id!, setNo, firstSet.weight, firstSet.reps)
+      await upsertSetLog(id, exercise.id!, setNo, firstSet.weight, firstSet.reps)
     }
   }
 
   const clearExercise = async () => {
-    if (!workoutLogId) return
+    if (!workoutLogPromise) return
     if (!confirm(`"${exercise.name}" için bugün girdiğin değerler silinsin mi?`)) return
-    await clearSetLogsForExercise(workoutLogId, exercise.id!)
+    const id = await workoutLogPromise
+    await clearSetLogsForExercise(id, exercise.id!)
     setExtraSets(0)
   }
 
@@ -146,7 +160,7 @@ function ExerciseCard({ exercise, workoutLogId, existingSets }: ExerciseCardProp
               key={`${setNo}-${existing?.weight ?? ''}-${existing?.reps ?? ''}`}
               setNo={setNo}
               exerciseId={exercise.id!}
-              workoutLogId={workoutLogId}
+              workoutLogPromise={workoutLogPromise}
               initialWeight={existing?.weight}
               initialReps={existing?.reps}
             />
@@ -176,21 +190,22 @@ function ExerciseCard({ exercise, workoutLogId, existingSets }: ExerciseCardProp
 interface SetRowProps {
   setNo: number
   exerciseId: number
-  workoutLogId: number | null
+  workoutLogPromise: Promise<number> | null
   initialWeight?: number
   initialReps?: number
 }
 
-function SetRow({ setNo, exerciseId, workoutLogId, initialWeight, initialReps }: SetRowProps) {
+function SetRow({ setNo, exerciseId, workoutLogPromise, initialWeight, initialReps }: SetRowProps) {
   const [weight, setWeight] = useState(initialWeight?.toString() ?? '')
   const [reps, setReps] = useState(initialReps?.toString() ?? '')
 
-  const save = (nextWeight: string, nextReps: string) => {
-    if (!workoutLogId) return
+  const save = async (nextWeight: string, nextReps: string) => {
+    if (!workoutLogPromise) return
     const w = parseFloat(nextWeight)
     const r = parseInt(nextReps, 10)
     if (Number.isFinite(w) && Number.isFinite(r)) {
-      upsertSetLog(workoutLogId, exerciseId, setNo, w, r)
+      const id = await workoutLogPromise
+      upsertSetLog(id, exerciseId, setNo, w, r)
     }
   }
 
