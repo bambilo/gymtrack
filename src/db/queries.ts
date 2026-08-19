@@ -86,3 +86,24 @@ export async function deleteSetLog(workoutLogId: number, programExerciseId: numb
     .first()
   if (existing) await db.setLogs.delete(existing.id!)
 }
+
+export async function getLastSetLogsForExercise(
+  programExerciseId: number,
+  excludeWorkoutLogId: number | null
+) {
+  const setLogs = await db.setLogs.where('programExerciseId').equals(programExerciseId).toArray()
+  const relevant = setLogs.filter((s) => s.workoutLogId !== excludeWorkoutLogId)
+  if (relevant.length === 0) return []
+
+  const workoutLogIds = Array.from(new Set(relevant.map((s) => s.workoutLogId)))
+  const workoutLogs = await db.workoutLogs.where('id').anyOf(workoutLogIds).toArray()
+  const dateByLogId = new Map(workoutLogs.map((w) => [w.id, w.date]))
+
+  const withDate = relevant
+    .map((s) => ({ ...s, date: dateByLogId.get(s.workoutLogId) }))
+    .filter((s): s is typeof s & { date: string } => Boolean(s.date))
+  if (withDate.length === 0) return []
+
+  const maxDate = withDate.reduce((max, s) => (s.date > max ? s.date : max), withDate[0].date)
+  return withDate.filter((s) => s.date === maxDate).sort((a, b) => a.setNo - b.setNo)
+}

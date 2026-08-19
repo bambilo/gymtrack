@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { useCurrentUser } from '../context/CurrentUserContext'
 import { dateKey, formatLongDate } from '../lib/date'
-import { getOrCreateWorkoutLog, upsertSetLog } from '../db/queries'
+import { getOrCreateWorkoutLog, upsertSetLog, getLastSetLogsForExercise } from '../db/queries'
 import { PageHeader } from '../components/PageHeader'
 
 export function WorkoutLog() {
@@ -71,6 +71,21 @@ function ExerciseCard({ exercise, workoutLogId, existingSets }: ExerciseCardProp
 
   const setRows = Array.from({ length: totalSets }, (_, i) => i + 1)
 
+  const lastSets = useLiveQuery(
+    () =>
+      workoutLogId
+        ? getLastSetLogsForExercise(exercise.id!, workoutLogId)
+        : Promise.resolve([]),
+    [exercise.id, workoutLogId]
+  )
+
+  const useLastValues = async () => {
+    if (!workoutLogId || !lastSets || lastSets.length === 0) return
+    for (const s of lastSets) {
+      await upsertSetLog(workoutLogId, exercise.id!, s.setNo, s.weight, s.reps)
+    }
+  }
+
   return (
     <div className="card exercise-card">
       <div className="exercise-card-header">
@@ -79,6 +94,17 @@ function ExerciseCard({ exercise, workoutLogId, existingSets }: ExerciseCardProp
           Hedef: {exercise.targetSets}×{exercise.targetReps} · {exercise.intensity}
         </span>
       </div>
+
+      {lastSets && lastSets.length > 0 && (
+        <div className="last-values-row">
+          <span className="muted">
+            Son sefer: {lastSets.map((s) => `${s.weight}kg×${s.reps}`).join(', ')}
+          </span>
+          <button type="button" className="link-button" onClick={useLastValues}>
+            Bu değerleri kullan
+          </button>
+        </div>
+      )}
 
       <div className="set-rows">
         <div className="set-row set-row-labels">
@@ -90,7 +116,7 @@ function ExerciseCard({ exercise, workoutLogId, existingSets }: ExerciseCardProp
           const existing = existingSets.find((s) => s.setNo === setNo)
           return (
             <SetRow
-              key={setNo}
+              key={`${setNo}-${existing?.weight ?? ''}-${existing?.reps ?? ''}`}
               setNo={setNo}
               exerciseId={exercise.id!}
               workoutLogId={workoutLogId}
