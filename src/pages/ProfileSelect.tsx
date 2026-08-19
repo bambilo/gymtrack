@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../db/db'
 import { useCurrentUser } from '../context/CurrentUserContext'
-import { createUser } from '../db/queries'
+import { createUser, fetchUsers } from '../db/queries'
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery'
 
 export function ProfileSelect() {
-  const users = useLiveQuery(() => db.users.toArray(), [])
+  const users = useSupabaseQuery(fetchUsers, ['users'], [])
   const { setUserId } = useCurrentUser()
   const navigate = useNavigate()
   const [creating, setCreating] = useState(false)

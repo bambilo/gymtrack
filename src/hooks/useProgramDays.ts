@@ -1,13 +1,11 @@
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../db/db'
+import { useSupabaseQuery } from './useSupabaseQuery'
+import { fetchProgramDays } from '../db/queries'
 import type { ProgramDay } from '../db/types'
 
 export function useProgramDays(userId: number | null) {
-  return useLiveQuery(
-    () =>
-      userId
-        ? db.programDays.where('userId').equals(userId).sortBy('order')
-        : Promise.resolve<ProgramDay[]>([]),
+  return useSupabaseQuery<ProgramDay[]>(
+    () => (userId ? fetchProgramDays(userId) : Promise.resolve([])),
+    ['program_days'],
     [userId]
   )
 }

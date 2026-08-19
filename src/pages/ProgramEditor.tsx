@@ -1,6 +1,4 @@
 import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../db/db'
 import type { ProgramDay, ProgramExercise } from '../db/types'
 import { useCurrentUser } from '../context/CurrentUserContext'
 import { dayName } from '../lib/date'
@@ -12,8 +10,10 @@ import {
   updateProgramExercise,
   deleteProgramExercise,
   reorderProgramExercises,
+  fetchProgramExercises,
 } from '../db/queries'
 import { useProgramDays } from '../hooks/useProgramDays'
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery'
 
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7]
 
@@ -121,8 +121,9 @@ function ExerciseEditor({
   onBack: () => void
   onDeleted: () => void
 }) {
-  const exercises = useLiveQuery(
-    () => db.programExercises.where('programDayId').equals(day.id).sortBy('order'),
+  const exercises = useSupabaseQuery(
+    () => fetchProgramExercises(day.id),
+    ['program_exercises'],
     [day.id]
   )
 

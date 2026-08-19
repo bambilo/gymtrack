@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../db/db'
-import type { WorkoutLog, SetLog } from '../db/types'
 import { useCurrentUser } from '../context/CurrentUserContext'
 import { dateKey, formatLongDate } from '../lib/date'
 import { useProgramDays } from '../hooks/useProgramDays'
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery'
+import { fetchWorkoutLogsForUser, fetchSetLogsByWorkoutLogIds } from '../db/queries'
 import { PageHeader } from '../components/PageHeader'
 import { BottomNav } from '../components/BottomNav'
 
@@ -30,22 +29,18 @@ export function Calendar() {
   const year = viewDate.getFullYear()
   const month = viewDate.getMonth()
 
-  const workoutLogs = useLiveQuery(
-    () =>
-      userId
-        ? db.workoutLogs.where('userId').equals(userId).toArray()
-        : Promise.resolve<WorkoutLog[]>([]),
+  const workoutLogs = useSupabaseQuery(
+    () => (userId ? fetchWorkoutLogsForUser(userId) : Promise.resolve([])),
+    ['workout_logs'],
     [userId]
   )
 
   const workoutLogIds = useMemo(() => (workoutLogs ?? []).map((w) => w.id), [workoutLogs])
 
-  const setLogs = useLiveQuery(
-    () =>
-      workoutLogIds.length > 0
-        ? db.setLogs.where('workoutLogId').anyOf(workoutLogIds).toArray()
-        : Promise.resolve<SetLog[]>([]),
-    [workoutLogIds]
+  const setLogs = useSupabaseQuery(
+    () => fetchSetLogsByWorkoutLogIds(workoutLogIds),
+    ['set_logs'],
+    [workoutLogIds.join(',')]
   )
 
   const programDays = useProgramDays(userId)

@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../db/db'
 import { useCurrentUser } from '../context/CurrentUserContext'
 import { dateKey, formatLongDate } from '../lib/date'
 import {
@@ -9,7 +7,11 @@ import {
   upsertSetLog,
   getLastSetLogsForExercise,
   clearSetLogsForExercise,
+  fetchProgramDay,
+  fetchProgramExercises,
+  fetchSetLogsByWorkoutLogId,
 } from '../db/queries'
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery'
 import { PageHeader } from '../components/PageHeader'
 
 export function WorkoutLog() {
@@ -28,13 +30,15 @@ export function WorkoutLog() {
     getOrCreateWorkoutLog(userId, targetDate, dayId).then(setWorkoutLogId)
   }, [userId, dayId, targetDate])
 
-  const programDay = useLiveQuery(() => db.programDays.get(dayId), [dayId])
-  const exercises = useLiveQuery(
-    () => db.programExercises.where('programDayId').equals(dayId).sortBy('order'),
+  const programDay = useSupabaseQuery(() => fetchProgramDay(dayId), ['program_days'], [dayId])
+  const exercises = useSupabaseQuery(
+    () => fetchProgramExercises(dayId),
+    ['program_exercises'],
     [dayId]
   )
-  const setLogs = useLiveQuery(
-    () => (workoutLogId ? db.setLogs.where('workoutLogId').equals(workoutLogId).toArray() : []),
+  const setLogs = useSupabaseQuery(
+    () => (workoutLogId ? fetchSetLogsByWorkoutLogId(workoutLogId) : Promise.resolve([])),
+    ['set_logs'],
     [workoutLogId]
   )
 
@@ -76,11 +80,12 @@ function ExerciseCard({ exercise, workoutLogId, existingSets }: ExerciseCardProp
 
   const setRows = Array.from({ length: totalSets }, (_, i) => i + 1)
 
-  const lastSets = useLiveQuery(
+  const lastSets = useSupabaseQuery(
     () =>
       workoutLogId
         ? getLastSetLogsForExercise(exercise.id!, workoutLogId)
         : Promise.resolve([]),
+    ['set_logs', 'workout_logs'],
     [exercise.id, workoutLogId]
   )
 

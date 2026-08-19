@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
 import {
   AreaChart,
   Area,
@@ -10,10 +9,11 @@ import {
   CartesianGrid,
   LabelList,
 } from 'recharts'
-import { db } from '../db/db'
-import type { ProgramExercise } from '../db/types'
 import { useCurrentUser } from '../context/CurrentUserContext'
 import { useProgramDays } from '../hooks/useProgramDays'
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery'
+import { fetchProgramExercises, fetchSetLogsByProgramExerciseId } from '../db/queries'
+import { supabase } from '../db/supabase'
 import { PageHeader } from '../components/PageHeader'
 import { BottomNav } from '../components/BottomNav'
 
@@ -24,11 +24,9 @@ export function History() {
 
   const programDays = useProgramDays(userId)
 
-  const dayExercises = useLiveQuery(
-    () =>
-      selectedDayId
-        ? db.programExercises.where('programDayId').equals(selectedDayId).sortBy('order')
-        : Promise.resolve<ProgramExercise[]>([]),
+  const dayExercises = useSupabaseQuery(
+    () => (selectedDayId ? fetchProgramExercises(selectedDayId) : Promise.resolve([])),
+    ['program_exercises'],
     [selectedDayId]
   )
 
@@ -42,35 +40,44 @@ export function History() {
     return dayExercises.filter((e) => e.name === selectedName).map((e) => e.id)
   }, [dayExercises, selectedName])
 
-  const chartData = useLiveQuery(async () => {
-    if (selectedExerciseIds.length === 0) return []
-    const setLogs = await db.setLogs.where('programExerciseId').anyOf(selectedExerciseIds).toArray()
-    if (setLogs.length === 0) return []
+  const chartData = useSupabaseQuery(
+    async () => {
+      if (selectedExerciseIds.length === 0) return []
+      const results = await Promise.all(selectedExerciseIds.map((id) => fetchSetLogsByProgramExerciseId(id)))
+      const setLogs = results.flat()
+      if (setLogs.length === 0) return []
 
-    const workoutLogIds = Array.from(new Set(setLogs.map((s) => s.workoutLogId)))
-    const workoutLogs = await db.workoutLogs.where('id').anyOf(workoutLogIds).toArray()
-    const dateByLogId = new Map(workoutLogs.map((w) => [w.id, w.date]))
+      const workoutLogIds = Array.from(new Set(setLogs.map((s) => s.workoutLogId)))
+      const { data: workoutLogs, error } = await supabase
+        .from('workout_logs')
+        .select('id, date')
+        .in('id', workoutLogIds)
+      if (error) throw error
+      const dateByLogId = new Map((workoutLogs ?? []).map((w) => [w.id, w.date as string]))
 
-    const entries = setLogs
-      .map((s) => {
-        const date = dateByLogId.get(s.workoutLogId)
-        return date ? { date, setNo: s.setNo, weight: s.weight, reps: s.reps } : null
-      })
-      .filter((e): e is { date: string; setNo: number; weight: number; reps: number } => e !== null)
-      .sort((a, b) => a.date.localeCompare(b.date) || a.setNo - b.setNo)
+      const entries = setLogs
+        .map((s) => {
+          const date = dateByLogId.get(s.workoutLogId)
+          return date ? { date, setNo: s.setNo, weight: s.weight, reps: s.reps } : null
+        })
+        .filter((e): e is { date: string; setNo: number; weight: number; reps: number } => e !== null)
+        .sort((a, b) => a.date.localeCompare(b.date) || a.setNo - b.setNo)
 
-    const countByDate = new Map<string, number>()
-    for (const e of entries) countByDate.set(e.date, (countByDate.get(e.date) ?? 0) + 1)
+      const countByDate = new Map<string, number>()
+      for (const e of entries) countByDate.set(e.date, (countByDate.get(e.date) ?? 0) + 1)
 
-    return entries.map((e) => ({
-      label:
-        (countByDate.get(e.date) ?? 0) > 1
-          ? `${formatShortDate(e.date)} S${e.setNo}`
-          : formatShortDate(e.date),
-      weight: e.weight,
-      reps: e.reps,
-    }))
-  }, [selectedExerciseIds])
+      return entries.map((e) => ({
+        label:
+          (countByDate.get(e.date) ?? 0) > 1
+            ? `${formatShortDate(e.date)} S${e.setNo}`
+            : formatShortDate(e.date),
+        weight: e.weight,
+        reps: e.reps,
+      }))
+    },
+    ['set_logs', 'workout_logs'],
+    [selectedExerciseIds.join(',')]
+  )
 
   const yDomain = useMemo<[number, number]>(() => {
     if (!chartData || chartData.length === 0) return [0, 10]

@@ -1,28 +1,23 @@
 import { useMemo } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../db/db'
-import type { WorkoutLog, SetLog } from '../db/types'
+import { useSupabaseQuery } from './useSupabaseQuery'
+import { fetchWorkoutLogsByUserAndDate, fetchSetLogsByWorkoutLogIds } from '../db/queries'
 import { dateKey } from '../lib/date'
 
 export function useTodaysLoggedDays(userId: number | null) {
   const todayKey = dateKey(new Date())
 
-  const todaysLogs = useLiveQuery(
-    () =>
-      userId
-        ? db.workoutLogs.where({ userId, date: todayKey }).toArray()
-        : Promise.resolve<WorkoutLog[]>([]),
+  const todaysLogs = useSupabaseQuery(
+    () => (userId ? fetchWorkoutLogsByUserAndDate(userId, todayKey) : Promise.resolve([])),
+    ['workout_logs'],
     [userId, todayKey]
   )
 
   const todaysLogIds = useMemo(() => (todaysLogs ?? []).map((l) => l.id), [todaysLogs])
 
-  const todaysSetLogs = useLiveQuery(
-    () =>
-      todaysLogIds.length > 0
-        ? db.setLogs.where('workoutLogId').anyOf(todaysLogIds).toArray()
-        : Promise.resolve<SetLog[]>([]),
-    [todaysLogIds]
+  const todaysSetLogs = useSupabaseQuery(
+    () => fetchSetLogsByWorkoutLogIds(todaysLogIds),
+    ['set_logs'],
+    [todaysLogIds.join(',')]
   )
 
   return useMemo(() => {

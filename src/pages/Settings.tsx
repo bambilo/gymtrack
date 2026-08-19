@@ -1,15 +1,14 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../db/db'
 import { useCurrentUser } from '../context/CurrentUserContext'
+import { useCurrentUserRecord } from '../hooks/useCurrentUserRecord'
 import { updateUser, deleteUser } from '../db/queries'
 import { exportBackup, importBackup } from '../db/backup'
 import { PageHeader } from '../components/PageHeader'
 
 export function Settings() {
-  const { userId, setUserId } = useCurrentUser()
-  const user = useLiveQuery(() => (userId ? db.users.get(userId) : undefined), [userId])
+  const { setUserId } = useCurrentUser()
+  const { userId, user } = useCurrentUserRecord()
   const [name, setName] = useState('')
   const [importMessage, setImportMessage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -83,8 +82,8 @@ export function Settings() {
       <div className="card">
         <h3>Yedekleme</h3>
         <p className="muted">
-          Tüm verilerin bu cihazda saklanıyor. Tarayıcı verisi silinirse kaybolabilir — düzenli
-          olarak yedek almanı öneririz.
+          Tüm veriler ortak sunucuda saklanıyor ve herkes birbirinin verisini görebiliyor. Yine de
+          düzenli olarak yedek almanı öneririz.
         </p>
         <button type="button" className="secondary-button" onClick={() => exportBackup()}>
           Yedeği Dışa Aktar
