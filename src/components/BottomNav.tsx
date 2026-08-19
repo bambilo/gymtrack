@@ -1,12 +1,14 @@
-import { Link } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
+
+const linkClass = ({ isActive }: { isActive: boolean }) => (isActive ? 'active' : '')
 
 export function BottomNav() {
   return (
     <nav className="bottom-nav">
-      <Link to="/">Bugün</Link>
-      <Link to="/calendar">Takvim</Link>
-      <Link to="/history">Geçmiş</Link>
-      <Link to="/settings">Ayarlar</Link>
+      <NavLink to="/" end className={linkClass}>Bugün</NavLink>
+      <NavLink to="/calendar" className={linkClass}>Takvim</NavLink>
+      <NavLink to="/history" className={linkClass}>Geçmiş</NavLink>
+      <NavLink to="/settings" className={linkClass}>Ayarlar</NavLink>
     </nav>
   )
 }
