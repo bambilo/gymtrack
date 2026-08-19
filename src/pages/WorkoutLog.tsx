@@ -4,7 +4,12 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { useCurrentUser } from '../context/CurrentUserContext'
 import { dateKey, formatLongDate } from '../lib/date'
-import { getOrCreateWorkoutLog, upsertSetLog, getLastSetLogsForExercise } from '../db/queries'
+import {
+  getOrCreateWorkoutLog,
+  upsertSetLog,
+  getLastSetLogsForExercise,
+  clearSetLogsForExercise,
+} from '../db/queries'
 import { PageHeader } from '../components/PageHeader'
 
 export function WorkoutLog() {
@@ -96,6 +101,13 @@ function ExerciseCard({ exercise, workoutLogId, existingSets }: ExerciseCardProp
     }
   }
 
+  const clearExercise = async () => {
+    if (!workoutLogId) return
+    if (!confirm(`"${exercise.name}" için bugün girdiğin değerler silinsin mi?`)) return
+    await clearSetLogsForExercise(workoutLogId, exercise.id!)
+    setExtraSets(0)
+  }
+
   return (
     <div className="card exercise-card">
       <div className="exercise-card-header">
@@ -144,6 +156,11 @@ function ExerciseCard({ exercise, workoutLogId, existingSets }: ExerciseCardProp
         {firstSet && setRows.length > 1 && (
           <button className="secondary-button" onClick={applyFirstSetToAll}>
             Set 1'i tüm setlere uygula
+          </button>
+        )}
+        {existingSets.length > 0 && (
+          <button className="secondary-button danger-button" onClick={clearExercise}>
+            Temizle
           </button>
         )}
       </div>

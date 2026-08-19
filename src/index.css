@@ -178,6 +178,15 @@ h3 {
   border-color: var(--border-strong);
 }
 
+.danger-button {
+  color: var(--danger);
+}
+
+.danger-button:hover {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+
 .link-button {
   background: none;
   border: none;

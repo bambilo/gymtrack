@@ -87,6 +87,10 @@ export async function deleteSetLog(workoutLogId: number, programExerciseId: numb
   if (existing) await db.setLogs.delete(existing.id!)
 }
 
+export async function clearSetLogsForExercise(workoutLogId: number, programExerciseId: number) {
+  await db.setLogs.where({ workoutLogId, programExerciseId }).delete()
+}
+
 export async function getLastSetLogsForExercise(
   programExerciseId: number,
   excludeWorkoutLogId: number | null
