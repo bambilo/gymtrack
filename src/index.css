@@ -18,7 +18,10 @@ body {
   max-width: 480px;
   margin: 0 auto;
   min-height: 100vh;
-  padding-bottom: 5rem;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 .screen {
@@ -138,7 +141,7 @@ h3 {
   justify-content: space-around;
   background: #161b28;
   border-top: 1px solid #232838;
-  padding: 0.85rem 0;
+  padding: 0.85rem 0 calc(0.85rem + env(safe-area-inset-bottom));
 }
 
 .bottom-nav a {
@@ -602,7 +605,7 @@ h3 {
 
 .status-banner {
   position: sticky;
-  top: 0;
+  top: env(safe-area-inset-top);
   z-index: 20;
   display: flex;
   align-items: center;
