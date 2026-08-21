@@ -211,13 +211,17 @@ export async function reorderProgramExercises(orderedIds: number[]) {
 // ---- Writes: workout logs / set logs ----
 
 export async function getOrCreateWorkoutLog(userId: number, date: string, programDayId: number) {
-  const existing = await fetchWorkoutLogsByUserAndDate(userId, date)
-  const match = existing.find((w) => w.programDayId === programDayId)
-  if (match) return match.id
-
+  // upsert on the (user_id, date, program_day_id) unique constraint instead of
+  // select-then-insert: two concurrent calls (e.g. React StrictMode's double
+  // render, or a fast re-render) used to both see "no existing row" and both
+  // insert, creating duplicate workout logs that silently split a day's sets
+  // across two ids. Upsert makes this atomic at the database level.
   const { data, error } = await supabase
     .from('workout_logs')
-    .insert({ user_id: userId, date, program_day_id: programDayId })
+    .upsert(
+      { user_id: userId, date, program_day_id: programDayId },
+      { onConflict: 'user_id,date,program_day_id', ignoreDuplicates: false }
+    )
     .select('id')
     .single()
   if (error) throw error

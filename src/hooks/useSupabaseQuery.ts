@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../db/supabase'
 
 export function useSupabaseQuery<T>(
@@ -8,9 +8,19 @@ export function useSupabaseQuery<T>(
 ): T | undefined {
   const [data, setData] = useState<T | undefined>(undefined)
 
+  // The realtime subscription below is only re-created when `watchTables`
+  // changes (rarely), so its callback would otherwise close over whichever
+  // `fetcher` existed at subscribe time — e.g. one built from a still-null
+  // id on first render — and keep re-running that stale, wrong query
+  // forever, clobbering correct data every time an event comes in. Routing
+  // every call through a ref keeps it on the latest fetcher without tying
+  // the subscription's lifecycle to it.
+  const fetcherRef = useRef(fetcher)
+  fetcherRef.current = fetcher
+
   useEffect(() => {
     let cancelled = false
-    fetcher().then((result) => {
+    fetcherRef.current().then((result) => {
       if (!cancelled) setData(result)
     })
     return () => {
@@ -28,7 +38,7 @@ export function useSupabaseQuery<T>(
         'postgres_changes' as never,
         { event: '*', schema: 'public', table },
         () => {
-          fetcher().then((result) => setData(result))
+          fetcherRef.current().then((result) => setData(result))
         }
       )
     }
