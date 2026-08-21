@@ -5,6 +5,7 @@ import { dateKey, formatLongDate } from '../lib/date'
 import {
   getOrCreateWorkoutLog,
   upsertSetLog,
+  deleteSetLog,
   getLastSetLogsForExercise,
   clearSetLogsForExercise,
   fetchProgramDay,
@@ -142,6 +143,18 @@ function ExerciseCard({
     onSetsChanged()
   }
 
+  const canRemoveSet = totalSets > exercise.targetSets
+  const removeSet = async () => {
+    if (!canRemoveSet) return
+    const lastSetNo = totalSets
+    if (workoutLogPromise) {
+      const id = await workoutLogPromise
+      await deleteSetLog(id, exercise.id!, lastSetNo)
+    }
+    setExtraSets((n) => n - 1)
+    onSetsChanged()
+  }
+
   return (
     <div className="card exercise-card">
       <div className="exercise-card-header">
@@ -188,6 +201,11 @@ function ExerciseCard({
         <button className="secondary-button" onClick={() => setExtraSets((n) => n + 1)}>
           + Set Ekle
         </button>
+        {canRemoveSet && (
+          <button className="secondary-button" onClick={removeSet}>
+            - Set Çıkar
+          </button>
+        )}
         {firstSet && setRows.length > 1 && (
           <button className="secondary-button" onClick={applyFirstSetToAll}>
             Set 1'i tüm setlere uygula

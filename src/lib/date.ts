@@ -33,3 +33,16 @@ export function formatLongDate(dateStr: string): string {
   const [y, m, d] = dateStr.split('-').map(Number)
   return `${d} ${MONTH_NAMES[m - 1]} ${y}`
 }
+
+export function relativeDayLabel(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const target = new Date(y, m - 1, d)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const diffDays = Math.round((today.getTime() - target.getTime()) / 86400000)
+
+  if (diffDays === 0) return 'Bugün yapıldı'
+  if (diffDays === 1) return 'Dün yapıldı'
+  if (diffDays > 1) return `${diffDays} gün önce yapıldı`
+  return formatLongDate(dateStr)
+}

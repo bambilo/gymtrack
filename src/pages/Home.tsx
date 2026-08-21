@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
 import { useCurrentUser } from '../context/CurrentUserContext'
-import { dayName, isoWeekday } from '../lib/date'
+import { dayName, isoWeekday, relativeDayLabel } from '../lib/date'
 import { useCurrentUserRecord } from '../hooks/useCurrentUserRecord'
 import { useProgramDays } from '../hooks/useProgramDays'
-import { useTodaysLoggedDays } from '../hooks/useTodaysLoggedDays'
+import { useLastDoneDates } from '../hooks/useLastDoneDates'
 import { BottomNav } from '../components/BottomNav'
 
 export function Home() {
@@ -12,7 +12,7 @@ export function Home() {
   const todayIso = isoWeekday(new Date())
 
   const programDays = useProgramDays(userId)
-  const loggedProgramDayIds = useTodaysLoggedDays(userId)
+  const lastDoneDates = useLastDoneDates(userId)
 
   if (!userId || !user) return null
 
@@ -39,14 +39,17 @@ export function Home() {
         </div>
       ) : (
         <div className="program-day-grid">
-          {programDays?.map((day) => (
-            <Link key={day.id} to={`/log/${day.id}`} className="program-day-card">
-              <span className="program-day-title">{day.title}</span>
-              {loggedProgramDayIds.has(day.id) && (
-                <span className="program-day-badge">Bugün yapıldı ✓</span>
-              )}
-            </Link>
-          ))}
+          {programDays?.map((day) => {
+            const lastDate = lastDoneDates.get(day.id)
+            return (
+              <Link key={day.id} to={`/log/${day.id}`} className="program-day-card">
+                <span className="program-day-title">{day.title}</span>
+                {lastDate && (
+                  <span className="program-day-badge">{relativeDayLabel(lastDate)}</span>
+                )}
+              </Link>
+            )
+          })}
         </div>
       )}
 
