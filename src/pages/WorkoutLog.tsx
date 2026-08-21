@@ -45,11 +45,15 @@ export function WorkoutLog() {
     ['program_exercises'],
     [dayId]
   )
+  // Bumped after any local write so the set list refreshes immediately
+  // instead of waiting on the realtime round-trip to come back.
+  const [setLogsVersion, bumpSetLogsVersion] = useState(0)
   const setLogs = useSupabaseQuery(
     () => (workoutLogId ? fetchSetLogsByWorkoutLogId(workoutLogId) : Promise.resolve([])),
     ['set_logs'],
-    [workoutLogId]
+    [workoutLogId, setLogsVersion]
   )
+  const refreshSetLogs = () => bumpSetLogsVersion((v) => v + 1)
 
   if (!userId) return null
 
@@ -68,6 +72,7 @@ export function WorkoutLog() {
           workoutLogId={workoutLogId}
           workoutLogPromise={workoutLogPromise}
           existingSets={setLogs?.filter((s) => s.programExerciseId === exercise.id) ?? []}
+          onSetsChanged={refreshSetLogs}
         />
       ))}
 
@@ -83,9 +88,16 @@ interface ExerciseCardProps {
   workoutLogId: number | null
   workoutLogPromise: Promise<number> | null
   existingSets: { setNo: number; weight: number; reps: number }[]
+  onSetsChanged: () => void
 }
 
-function ExerciseCard({ exercise, workoutLogId, workoutLogPromise, existingSets }: ExerciseCardProps) {
+function ExerciseCard({
+  exercise,
+  workoutLogId,
+  workoutLogPromise,
+  existingSets,
+  onSetsChanged,
+}: ExerciseCardProps) {
   const [extraSets, setExtraSets] = useState(0)
   const totalSets = Math.max(exercise.targetSets, ...existingSets.map((s) => s.setNo)) + extraSets
 
@@ -106,6 +118,7 @@ function ExerciseCard({ exercise, workoutLogId, workoutLogPromise, existingSets 
     for (const s of lastSets) {
       await upsertSetLog(id, exercise.id!, s.setNo, s.weight, s.reps)
     }
+    onSetsChanged()
   }
 
   const firstSet = existingSets.find((s) => s.setNo === 1)
@@ -117,6 +130,7 @@ function ExerciseCard({ exercise, workoutLogId, workoutLogPromise, existingSets 
       if (setNo === 1) continue
       await upsertSetLog(id, exercise.id!, setNo, firstSet.weight, firstSet.reps)
     }
+    onSetsChanged()
   }
 
   const clearExercise = async () => {
@@ -125,6 +139,7 @@ function ExerciseCard({ exercise, workoutLogId, workoutLogPromise, existingSets 
     const id = await workoutLogPromise
     await clearSetLogsForExercise(id, exercise.id!)
     setExtraSets(0)
+    onSetsChanged()
   }
 
   return (
@@ -163,6 +178,7 @@ function ExerciseCard({ exercise, workoutLogId, workoutLogPromise, existingSets 
               workoutLogPromise={workoutLogPromise}
               initialWeight={existing?.weight}
               initialReps={existing?.reps}
+              onSaved={onSetsChanged}
             />
           )
         })}
@@ -193,9 +209,10 @@ interface SetRowProps {
   workoutLogPromise: Promise<number> | null
   initialWeight?: number
   initialReps?: number
+  onSaved: () => void
 }
 
-function SetRow({ setNo, exerciseId, workoutLogPromise, initialWeight, initialReps }: SetRowProps) {
+function SetRow({ setNo, exerciseId, workoutLogPromise, initialWeight, initialReps, onSaved }: SetRowProps) {
   const [weight, setWeight] = useState(initialWeight?.toString() ?? '')
   const [reps, setReps] = useState(initialReps?.toString() ?? '')
 
@@ -205,7 +222,8 @@ function SetRow({ setNo, exerciseId, workoutLogPromise, initialWeight, initialRe
     const r = parseInt(nextReps, 10)
     if (Number.isFinite(w) && Number.isFinite(r)) {
       const id = await workoutLogPromise
-      upsertSetLog(id, exerciseId, setNo, w, r)
+      await upsertSetLog(id, exerciseId, setNo, w, r)
+      onSaved()
     }
   }
 
