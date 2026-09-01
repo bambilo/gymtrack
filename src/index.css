@@ -751,3 +751,82 @@ h3 {
   background: var(--accent-gradient);
   color: #04150e;
 }
+
+.greeting-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(5, 7, 13, 0.72);
+  backdrop-filter: blur(6px);
+  animation: greeting-fade-in 0.25s ease;
+}
+
+.greeting-card {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  padding: 2rem 1.75rem 1.75rem;
+  border-radius: var(--r-lg);
+  background: var(--accent-gradient);
+  color: #04150e;
+  text-align: center;
+  box-shadow: var(--shadow-pop);
+  animation: greeting-pop-in 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.greeting-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  border: none;
+  background: rgba(4, 21, 14, 0.15);
+  color: inherit;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--r-pill);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.greeting-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.greeting-text {
+  margin: 0 0 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.greeting-heart {
+  display: inline-block;
+  animation: greeting-heartbeat 1.2s ease-in-out infinite;
+}
+
+.greeting-cta {
+  background: #04150e;
+  color: var(--accent);
+  box-shadow: none;
+}
+
+@keyframes greeting-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes greeting-pop-in {
+  from { opacity: 0; transform: scale(0.9) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes greeting-heartbeat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+}

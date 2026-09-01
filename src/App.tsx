@@ -8,6 +8,7 @@ import { Calendar } from './pages/Calendar'
 import { Settings } from './pages/Settings'
 import { ProgramEditor } from './pages/ProgramEditor'
 import { PwaStatus } from './components/PwaStatus'
+import { MonthlyGreeting } from './components/MonthlyGreeting'
 
 function Router() {
   const { userId } = useCurrentUser()
@@ -34,6 +35,7 @@ function App() {
     <CurrentUserProvider>
       <BrowserRouter>
         <PwaStatus />
+        <MonthlyGreeting />
         <Router />
       </BrowserRouter>
     </CurrentUserProvider>
